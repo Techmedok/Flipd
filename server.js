@@ -1,3 +1,4 @@
+require('dotenv').config();
 const fastify = require('fastify')({ logger: true });
 const fastifyStatic = require('@fastify/static');
 const fastifyPostgres = require('@fastify/postgres');
@@ -7,9 +8,8 @@ const sha3 = require('js-sha3');
 const path = require('path');
 const emailValidator = require('email-validator');
 
-// Register Fastify plugins
 fastify.register(fastifyPostgres, {
-  connectionString: 'postgresql://flipduser:e0eqR1hCucTH8S188Z2yXrt0JFExAzru@161.97.70.226:5432/flipddb'
+  connectionString: process.env.DB_CONNECTION_STRING
 });
 
 fastify.register(fastifyCookie);
@@ -19,7 +19,6 @@ fastify.register(fastifyStatic, {
   prefix: '/',
 });
 
-// Middleware to check authentication
 const isLoggedIn = async (request, reply) => {
   const userId = request.cookies.auth;
 
