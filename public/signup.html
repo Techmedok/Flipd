@@ -15,13 +15,11 @@
         <button type="submit">Sign Up</button>
     </form>
     
-    <!-- Error message container -->
     <p id="error-message" style="color: red;"></p>
 
     <script>
-        // Handle form submission via AJAX
         document.getElementById('signup-form').addEventListener('submit', async function(event) {
-            event.preventDefault(); // Prevent default form submission
+            event.preventDefault();
             
             const name = document.getElementById('name').value;
             const email = document.getElementById('email').value;
@@ -42,7 +40,7 @@
             if (data.success === false) {
                 errorMessageElement.textContent = data.message;
             } else {
-                window.location.href = '/signin'; // Redirect to sign-in page after successful sign-up
+                window.location.href = '/signin';
             }
         });
     </script>

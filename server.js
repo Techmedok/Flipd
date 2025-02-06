@@ -4,9 +4,14 @@ const fastifyStatic = require('@fastify/static');
 const fastifyPostgres = require('@fastify/postgres');
 const fastifyCookie = require('@fastify/cookie');
 const fastifyFormbody = require('@fastify/formbody');
+const jwt = require('jsonwebtoken');
 const sha3 = require('js-sha3');
 const path = require('path');
 const emailValidator = require('email-validator');
+
+// JWT Configuration
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRATION = '12h';
 
 fastify.register(fastifyPostgres, {
   connectionString: process.env.DB_CONNECTION_STRING
@@ -19,24 +24,32 @@ fastify.register(fastifyStatic, {
   prefix: '/',
 });
 
-const isLoggedIn = async (request, reply) => {
-  const userId = request.cookies.auth;
+// JWT Verification Middleware
+const verifyToken = async (request, reply) => {
+  const token = request.cookies.token;
 
-  if (userId) {
-    if (request.url === '/signin' || request.url === '/signup') {
-      return reply.redirect('/dashboard');
-    }
-  } else {
-    const protectedRoutes = ['/dashboard'];
-    if (protectedRoutes.includes(request.url)) {
+  if (!token) {
+    if (['/dashboard'].includes(request.url)) {
       return reply.redirect('/signin');
     }
+    return;
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    request.user = decoded;
+
+    // Prevent access to signin/signup if already authenticated
+    if (['/signin', '/signup'].includes(request.url)) {
+      return reply.redirect('/dashboard');
+    }
+  } catch (err) {
+    reply.clearCookie('token', { path: '/' });
+    return reply.redirect('/signin');
   }
 };
 
-fastify.addHook('preHandler', async (request, reply) => {
-  await isLoggedIn(request, reply);
-});
+fastify.addHook('preHandler', verifyToken);
 
 // Routes
 fastify.get('/', async (request, reply) => reply.sendFile('index.html'));
@@ -44,13 +57,13 @@ fastify.get('/signup', async (request, reply) => reply.sendFile('signup.html'));
 fastify.get('/signin', async (request, reply) => reply.sendFile('signin.html'));
 fastify.get('/dashboard', async (request, reply) => reply.sendFile('dashboard.html'));
 
-// Helper function for password validation
+// Helper Functions
 const validatePassword = (password) => {
   const regex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
   return regex.test(password);
 };
 
-// Signup route
+// Signup Route
 fastify.post('/signup', async (request, reply) => {
   const { name, email, password, confirmPassword } = request.body;
 
@@ -71,10 +84,9 @@ fastify.post('/signup', async (request, reply) => {
   }
 
   try {
-    const hashedPassword = sha3.sha3_256(password);  // Use SHA3-256 for password hashing
+    const hashedPassword = sha3.sha3_256(password);
     const client = await fastify.pg.connect();
     
-    // Note: Removed manual userid generation as schema now uses gen_random_uuid()
     await client.query(
       'INSERT INTO users (name, email, password) VALUES ($1, $2, $3)', 
       [name, email, hashedPassword]
@@ -83,7 +95,7 @@ fastify.post('/signup', async (request, reply) => {
     client.release();
     return reply.send({ success: true, message: "Signup successful. Please login." });
   } catch (err) {
-    if (err.code === "23505") { // Duplicate email error
+    if (err.code === "23505") {
       return reply.status(400).send({ success: false, message: "Email already in use" });
     }
     console.log(err);
@@ -91,7 +103,7 @@ fastify.post('/signup', async (request, reply) => {
   }
 });
 
-// Signin route
+// Signin Route
 fastify.post('/signin', async (request, reply) => {
   const { email, password } = request.body;
 
@@ -108,20 +120,40 @@ fastify.post('/signin', async (request, reply) => {
       return reply.status(401).send({ success: false, message: "Invalid email or password" });
     }
 
-    reply.setCookie('auth', rows[0].id, { path: '/' });
-    return reply.send({ success: true, message: "Login successful", redirect: "/dashboard" });
+    // Generate JWT Token
+    const token = jwt.sign(
+      { id: rows[0].id, email: rows[0].email }, 
+      JWT_SECRET, 
+      { expiresIn: JWT_EXPIRATION }
+    );
+
+    // Update last login
+    await fastify.pg.connect().then(client => {
+      client.query('UPDATE users SET last_login = NOW() WHERE id = $1', [rows[0].id]);
+      client.release();
+    });
+
+    // Set JWT token as HTTP-only cookie
+    reply.setCookie('token', token, { 
+      path: '/', 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 12 * 60 * 60 // 12 hours in seconds
+    });
+
+    return reply.send({ success: true, redirect: "/dashboard" });
   } catch (err) {
     return reply.status(500).send({ success: false, message: "Internal Server Error" });
   }
 });
 
-// Logout route
+// Logout Route
 fastify.get('/logout', async (request, reply) => {
-  reply.clearCookie('auth', { path: '/' });
+  reply.clearCookie('token', { path: '/' });
   return reply.redirect('/');
 });
 
-// Start server
+// Start Server
 const start = async () => {
   try {
     await fastify.listen({ port: 3000, host: '0.0.0.0' });

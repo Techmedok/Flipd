@@ -11,13 +11,11 @@
         <button type="submit">Sign In</button>
     </form>
     
-    <!-- Error message container -->
     <p id="error-message" style="color: red;"></p>
 
     <script>
-        // Handle form submission via AJAX
         document.getElementById('signin-form').addEventListener('submit', async function(event) {
-            event.preventDefault(); // Prevent default form submission
+            event.preventDefault();
             
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
