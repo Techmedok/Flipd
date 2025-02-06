@@ -73,13 +73,20 @@ fastify.post('/signup', async (request, reply) => {
   try {
     const hashedPassword = sha3.sha3_256(password);  // Use SHA3-256 for password hashing
     const client = await fastify.pg.connect();
-    await client.query('INSERT INTO users (name, email, password) VALUES ($1, $2, $3)', [name, email, hashedPassword]);
+    
+    // Note: Removed manual userid generation as schema now uses gen_random_uuid()
+    await client.query(
+      'INSERT INTO users (name, email, password) VALUES ($1, $2, $3)', 
+      [name, email, hashedPassword]
+    );
+    
     client.release();
     return reply.send({ success: true, message: "Signup successful. Please login." });
   } catch (err) {
     if (err.code === "23505") { // Duplicate email error
       return reply.status(400).send({ success: false, message: "Email already in use" });
     }
+    console.log(err);
     return reply.status(500).send({ success: false, message: "Internal Server Error" });
   }
 });
