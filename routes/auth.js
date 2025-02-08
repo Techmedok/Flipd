@@ -28,7 +28,7 @@ fastify.get('/signup', { preHandler: redirectIfAuthenticated }, async (request, 
     }
 
     if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password)) {
-      return reply.status(400).send({success: false, message: "Weak password"});
+      return reply.status(400).send({success: false, message: "Password must be at least 8 characters, contain at least one letter, one number, and one special character"});
     }
 
     if (password !== confirmPassword) {
