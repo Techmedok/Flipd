@@ -3,18 +3,16 @@ const jwt = require('jsonwebtoken');
 const emailValidator = require('email-validator');
 const redirectIfAuthenticated = require('../middlewares/redirectIfAuthenticated');
 const { JWT_SECRET, JWT_EXPIRATION, NODE_ENV } = require('../config/env');
+const verifyToken = require('../middlewares/authMiddleware');
 
 module.exports = async function (fastify) {
-//   fastify.get('/signup', async (request, reply) => reply.sendFile('signup.html'));
-// fastify.get('/signin', async (request, reply) => reply.sendFile('signin.html'));
+  fastify.get('/signin', { preHandler: redirectIfAuthenticated }, async (request, reply) => {
+    return reply.sendFile('signin.html');
+  });
 
-fastify.get('/signin', { preHandler: redirectIfAuthenticated }, async (request, reply) => {
-  return reply.sendFile('signin.html');
-});
-
-fastify.get('/signup', { preHandler: redirectIfAuthenticated }, async (request, reply) => {
-  return reply.sendFile('signup.html');
-});
+  fastify.get('/signup', { preHandler: redirectIfAuthenticated }, async (request, reply) => {
+    return reply.sendFile('signup.html');
+  });
 
   fastify.post('/signup', async (request, reply) => {
     const { name, email, password, confirmPassword } = request.body;
@@ -90,6 +88,10 @@ fastify.get('/signup', { preHandler: redirectIfAuthenticated }, async (request, 
     }
   });
 
+  fastify.get('/verifyToken', { preHandler: verifyToken }, async (request, reply) => {
+    return reply.send({ success: true });
+  });
+  
   fastify.get('/logout', async (request, reply) => {
     reply.clearCookie('token', { path: '/' });
     return reply.redirect('/');

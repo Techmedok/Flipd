@@ -5,7 +5,23 @@
 </head>
 <body>
     <h1>Hi</h1>
+    Username: <span id="message"></span><br>
+    Saved: <span id="count"></span>
+    <br>
     <a href="/">Home</a>
     <a href="/logout">Logout</a>
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            try {
+                const response = await fetch("/api/dashboard");
+                const data = await response.json();
+                document.getElementById("message").textContent = data.message;
+                document.getElementById("count").textContent = data.saved;
+
+            } catch (error) {
+                console.error("Error fetching dashboard data:", error);
+            }
+        });
+    </script>
 </body>
 </html>

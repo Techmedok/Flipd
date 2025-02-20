@@ -6,6 +6,6 @@ module.exports = async function (fastify) {
   });
 
   fastify.get('/api/dashboard', { preHandler: verifyToken }, async (request, reply) => {
-    return { message: 'hi' };
+    return { message: 'biren.ftw', 'saved': 23 };
   });
 };

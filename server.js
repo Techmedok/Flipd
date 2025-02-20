@@ -17,6 +17,7 @@ fastify.register(fastifyStatic, { root: path.join(__dirname, 'public'), prefix: 
 // Register Routes
 fastify.register(require('./routes/auth'));
 fastify.register(require('./routes/dashboard'));
+fastify.register(require('./routes/addArticle'));
 
 // Start Server
 const start = async () => {
