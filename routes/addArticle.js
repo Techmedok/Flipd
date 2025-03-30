@@ -18,7 +18,7 @@ module.exports = async function (fastify) {
     async (request, reply) => {
       const { url, sourcecode } = request.body;
       console.log('URL:', url);
-      // console.log('Source Code:', sourcecode);
+      console.log('Source Code:', sourcecode);
 
       return reply.send({ message: 'Page saved successfully!' });
     }

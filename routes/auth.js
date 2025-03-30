@@ -5,6 +5,11 @@ const redirectIfAuthenticated = require('../middlewares/redirectIfAuthenticated'
 const { JWT_SECRET, JWT_EXPIRATION, NODE_ENV } = require('../config/env');
 const verifyToken = require('../middlewares/authMiddleware');
 
+async function generateUserId() {
+  const { nanoid } = await import('nanoid');
+  return nanoid(8);
+}
+
 module.exports = async function (fastify) {
   fastify.get('/signin', { preHandler: redirectIfAuthenticated }, async (request, reply) => {
     return reply.sendFile('signin.html');
@@ -13,6 +18,44 @@ module.exports = async function (fastify) {
   fastify.get('/signup', { preHandler: redirectIfAuthenticated }, async (request, reply) => {
     return reply.sendFile('signup.html');
   });
+
+  // fastify.post('/signup', async (request, reply) => {
+  //   const { name, email, password, confirmPassword } = request.body;
+
+  //   if (!name || !email || !password || !confirmPassword) {
+  //     return reply.status(400).send({ success: false, message: "All fields are required" });
+  //   }
+
+  //   if (!emailValidator.validate(email)) {
+  //     return reply.status(400).send({ success: false, message: "Invalid email format" });
+  //   }
+
+  //   if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password)) {
+  //     return reply.status(400).send({success: false, message: "Password must be at least 8 characters, contain at least one letter, one number, and one special character"});
+  //   }
+
+  //   if (password !== confirmPassword) {
+  //     return reply.status(400).send({ success: false, message: "Passwords do not match" });
+  //   }
+
+  //   try {
+  //     const hashedPassword = sha3.sha3_256(password);
+  //     const client = await fastify.pg.connect();
+
+  //     await client.query(
+  //       'INSERT INTO users (name, email, password) VALUES ($1, $2, $3)', 
+  //       [name, email, hashedPassword]
+  //     );
+
+  //     client.release();
+  //     return reply.send({ success: true, message: "Signup successful. Please login." });
+  //   } catch (err) {
+  //     if (err.code === "23505") {
+  //       return reply.status(400).send({ success: false, message: "Email already in use" });
+  //     }
+  //     return reply.status(500).send({ success: false, message: "Internal Server Error" });
+  //   }
+  // });
 
   fastify.post('/signup', async (request, reply) => {
     const { name, email, password, confirmPassword } = request.body;
@@ -26,7 +69,10 @@ module.exports = async function (fastify) {
     }
 
     if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password)) {
-      return reply.status(400).send({success: false, message: "Password must be at least 8 characters, contain at least one letter, one number, and one special character"});
+      return reply.status(400).send({
+        success: false,
+        message: "Password must be at least 8 characters, contain at least one letter, one number, and one special character"
+      });
     }
 
     if (password !== confirmPassword) {
@@ -34,16 +80,19 @@ module.exports = async function (fastify) {
     }
 
     try {
+      // const userId = nanoid(8);
+      const userId = await generateUserId();
       const hashedPassword = sha3.sha3_256(password);
       const client = await fastify.pg.connect();
 
       await client.query(
-        'INSERT INTO users (name, email, password) VALUES ($1, $2, $3)', 
-        [name, email, hashedPassword]
+        `INSERT INTO users (user_id, name, email, password, is_verified, created_at) 
+        VALUES ($1, $2, $3, $4, $5, NOW())`,
+        [userId, name, email, hashedPassword, false]
       );
 
       client.release();
-      return reply.send({ success: true, message: "Signup successful. Please login." });
+      return reply.send({ success: true, message: "Signup successful. Please verify your email." });
     } catch (err) {
       if (err.code === "23505") {
         return reply.status(400).send({ success: false, message: "Email already in use" });
@@ -51,6 +100,7 @@ module.exports = async function (fastify) {
       return reply.status(500).send({ success: false, message: "Internal Server Error" });
     }
   });
+
 
   fastify.post('/signin', async (request, reply) => {
     const { email, password } = request.body;
